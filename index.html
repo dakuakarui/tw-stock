@@ -1,24 +1,100 @@
-name: update-data
-on:
-  schedule:
-    - cron: "30 8 * * 1-5"
-  workflow_dispatch:
-permissions:
-  contents: write
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Fetch data
-        run: |
-          curl -fsSL "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL" -o all.json
-          jq '[.[] | select(.Code=="2330" or .Code=="0050")]' all.json > data.json
-          rm all.json
-      - name: Commit
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          git add data.json
-          git diff --staged --quiet || git commit -m "update data"
-          git push
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0050 與台積電｜開盤、最低、收盤</title>
+<style>
+  :root {
+    --bg: #eef1ee; --card: #fbfcfb; --ink: #1b2420; --sub: #5d6a63; --line: #d3dad5;
+    --up: #c62f27; --down: #1d7a4a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #131916; --card: #1b231f; --ink: #e8eee9; --sub: #93a39a; --line: #2c3731; --up: #ff6b5f; --down: #4fcf8b; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.6 "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif; padding: 32px 16px; }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .date { color: var(--sub); margin: 0 0 24px; min-height: 1.6em; }
+  .stock { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .name { font-size: 1.15rem; font-weight: 700; }
+  .code { color: var(--sub); margin-left: 8px; font-weight: 400; }
+  .chg { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .grid dt { color: var(--sub); font-size: .9rem; }
+  .grid dd { margin: 0; font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .msg { color: var(--sub); }
+  .err { color: var(--up); }
+  footer { color: var(--sub); font-size: .85rem; margin-top: 20px; }
+  button { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  @media (max-width: 420px) { .grid dd { font-size: 1.3rem; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>0050 與台積電</h1>
+  <p class="date" id="date">載入中…</p>
+  <div id="list"></div>
+  <button id="reload" type="button">重新整理</button>
+  <footer>資料來源：臺灣證券交易所 OpenAPI，每個交易日收盤後自動更新，顯示最近一個交易日的資料。紅色代表上漲，綠色代表下跌。</footer>
+</main>
+<script>
+const API = "data.json";
+const TARGETS = [["2330", "台積電"], ["0050", "元大台灣50"]];
+const $ = (id) => document.getElementById(id);
+
+function rocToText(d) {
+  // "1141120" -> "2025/11/20"
+  const s = String(d || "");
+  if (s.length < 7) return "";
+  return (Number(s.slice(0, s.length - 4)) + 1911) + "/" + s.slice(-4, -2) + "/" + s.slice(-2);
+}
+
+function card(code, fallbackName, r) {
+  const change = parseFloat(r.Change);
+  const cls = change > 0 ? "up" : change < 0 ? "down" : "";
+  const sign = change > 0 ? "▲ " : change < 0 ? "▼ " : "";
+  const chg = isNaN(change) ? "" : sign + Math.abs(change).toFixed(2);
+  return `<section class="stock">
+    <div class="head">
+      <span class="name">${r.Name || fallbackName}<span class="code">${code}</span></span>
+      <span class="chg ${cls}">${chg}</span>
+    </div>
+    <dl class="grid">
+      <div><dt>開盤</dt><dd>${r.OpeningPrice || "–"}</dd></div>
+      <div><dt>最低</dt><dd>${r.LowestPrice || "–"}</dd></div>
+      <div><dt>收盤</dt><dd class="${cls}">${r.ClosingPrice || "–"}</dd></div>
+    </dl>
+  </section>`;
+}
+
+async function load() {
+  $("date").textContent = "載入中…";
+  try {
+    const res = await fetch(API + "?t=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const rows = await res.json();
+    let html = "", day = "";
+    for (const [code, name] of TARGETS) {
+      const r = rows.find((x) => x.Code === code);
+      if (!r) { html += `<section class="stock"><span class="msg">找不到 ${code} 的資料。</span></section>`; continue; }
+      if (!day && r.Date) day = rocToText(r.Date);
+      html += card(code, name, r);
+    }
+    $("list").innerHTML = html;
+    $("date").textContent = day ? "交易日：" + day : "最近一個交易日";
+  } catch (e) {
+    $("list").innerHTML = `<section class="stock"><p class="err">無法讀取資料。請確認 data.json 已經建立，稍後再按「重新整理」。</p></section>`;
+    $("date").textContent = "";
+  }
+}
+$("reload").addEventListener("click", load);
+load();
+</script>
+</body>
+</html>
