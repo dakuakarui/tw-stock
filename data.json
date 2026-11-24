@@ -1,28 +1,28 @@
 [
   {
-    "Date": "1151120",
+    "Date": "1151123",
     "Code": "0050",
     "Name": "元大台灣50",
-    "TradeVolume": "874056273",
-    "TradeValue": "74858941327",
-    "OpeningPrice": "87.25",
-    "HighestPrice": "88.05",
-    "LowestPrice": "83.95",
-    "ClosingPrice": "84.45",
-    "Change": "-5.7500",
-    "Transaction": "1224516"
+    "TradeVolume": "510651850",
+    "TradeValue": "43682559479",
+    "OpeningPrice": "84.40",
+    "HighestPrice": "87.50",
+    "LowestPrice": "83.50",
+    "ClosingPrice": "87.00",
+    "Change": "2.5500",
+    "Transaction": "373817"
   },
   {
-    "Date": "1151120",
+    "Date": "1151123",
     "Code": "2330",
     "Name": "台積電",
-    "TradeVolume": "88179393",
-    "TradeValue": "177284650683",
-    "OpeningPrice": "2035.00",
-    "HighestPrice": "2060.00",
+    "TradeVolume": "69364106",
+    "TradeValue": "139706022879",
+    "OpeningPrice": "1990.00",
+    "HighestPrice": "2050.00",
     "LowestPrice": "1970.00",
-    "ClosingPrice": "2000.00",
-    "Change": "-100.0000",
-    "Transaction": "823096"
+    "ClosingPrice": "2030.00",
+    "Change": "30.0000",
+    "Transaction": "219142"
   }
 ]
